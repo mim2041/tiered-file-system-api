@@ -9,6 +9,7 @@ import { errorMiddleware } from "./middleware/error.middleware";
 import { notFoundMiddleware } from "./middleware/not-found.middleware";
 import { sendOk } from "./utils/response";
 import { APP_NAME } from "./constants";
+import { authRouter } from "./features/auth/routes";
 
 export const createApp = (): Application => {
   const app = express();
@@ -36,6 +37,9 @@ export const createApp = (): Application => {
 
   // Swagger docs
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+  // Feature routes
+  app.use("/api/v1/auth", authRouter);
 
   // Base health + info routes
   app.get("/health", (req, res) =>
