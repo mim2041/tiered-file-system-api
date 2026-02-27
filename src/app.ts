@@ -2,7 +2,9 @@ import express, { Application } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env-config";
+import { swaggerSpec } from "./config/swagger.config";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { notFoundMiddleware } from "./middleware/not-found.middleware";
 import { sendOk } from "./utils/response";
@@ -32,6 +34,9 @@ export const createApp = (): Application => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Swagger docs
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
   // Base health + info routes
   app.get("/health", (req, res) =>
     sendOk(res, "OK", {
@@ -57,4 +62,3 @@ export const createApp = (): Application => {
 
   return app;
 };
-
