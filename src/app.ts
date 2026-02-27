@@ -10,6 +10,7 @@ import { notFoundMiddleware } from "./middleware/not-found.middleware";
 import { sendOk } from "./utils/response";
 import { APP_NAME } from "./constants";
 import { authRouter } from "./features/auth/routes";
+import { packageRouter, adminPackageRouter } from "./features/packages/routes";
 
 export const createApp = (): Application => {
   const app = express();
@@ -40,6 +41,8 @@ export const createApp = (): Application => {
 
   // Feature routes
   app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/packages", packageRouter);
+  app.use("/api/v1/admin/packages", adminPackageRouter);
 
   // Base health + info routes
   app.get("/health", (req, res) =>
