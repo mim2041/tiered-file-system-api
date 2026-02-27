@@ -14,3 +14,12 @@ export const loginSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// validateRequest-compatible schemas
+export const registerRequestSchema = z.object({
+  body: registerSchema,
+});
+
+export const loginRequestSchema = z.object({
+  body: loginSchema,
+});
+

@@ -1,7 +1,10 @@
 import { Router } from "express";
-import { loginHandler, registerHandler } from "./controller";
+import catchAsync from "@/utils/catchAsync";
+import validateRequest from "@/middleware/validateRequest";
+import { loginRequestSchema, registerRequestSchema } from "../schemas";
+import { loginHandler, registerHandler } from "../controllers/public.controller";
 
-export const authRouter = Router();
+export const publicAuthRouter = Router();
 
 /**
  * @openapi
@@ -25,10 +28,14 @@ export const authRouter = Router();
  *               password:
  *                 type: string
  *     responses:
- *       200:
+ *       201:
  *         description: Registration successful
  */
-authRouter.post("/register", registerHandler);
+publicAuthRouter.post(
+  "/register",
+  validateRequest(registerRequestSchema),
+  catchAsync(registerHandler),
+);
 
 /**
  * @openapi
@@ -53,5 +60,5 @@ authRouter.post("/register", registerHandler);
  *       200:
  *         description: Login successful
  */
-authRouter.post("/login", loginHandler);
+publicAuthRouter.post("/login", validateRequest(loginRequestSchema), catchAsync(loginHandler));
 

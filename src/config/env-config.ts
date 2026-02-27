@@ -29,5 +29,10 @@ export const env = {
     email: envData.DEFAULT_ADMIN_EMAIL,
     password: envData.DEFAULT_ADMIN_PASSWORD,
   },
+  cloudinary: {
+    cloudName: envData.CLOUDINARY_CLOUD_NAME,
+    apiKey: envData.CLOUDINARY_API_KEY,
+    apiSecret: envData.CLOUDINARY_API_SECRET,
+  },
 } as const;
 

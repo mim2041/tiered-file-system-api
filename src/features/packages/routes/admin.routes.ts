@@ -1,25 +1,16 @@
 import { Router } from "express";
+import catchAsync from "@/utils/catchAsync";
+import validateRequest from "@/middleware/validateRequest";
+import { authGuard } from "@/middleware/auth.guard";
+import { requireRole } from "@/middleware/rbac.middleware";
+import { createPackageRequestSchema, updatePackageRequestSchema } from "../schemas/schemas";
 import {
   createPackageHandler,
   deletePackageHandler,
-  listPackagesHandler,
   updatePackageHandler,
-} from "./controller";
+} from "../controllers/admin.controller";
 
-export const packageRouter = Router();
 export const adminPackageRouter = Router();
-
-/**
- * @openapi
- * /api/v1/packages:
- *   get:
- *     tags: [Packages]
- *     summary: List all subscription packages (public)
- *     responses:
- *       200:
- *         description: List of packages
- */
-packageRouter.get("/", listPackagesHandler);
 
 /**
  * @openapi
@@ -27,6 +18,8 @@ packageRouter.get("/", listPackagesHandler);
  *   post:
  *     tags: [Packages]
  *     summary: Create a new subscription package (admin)
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -64,10 +57,16 @@ packageRouter.get("/", listPackagesHandler);
  *                 items:
  *                   type: string
  *     responses:
- *       200:
+ *       201:
  *         description: Package created
  */
-adminPackageRouter.post("/", createPackageHandler);
+adminPackageRouter.post(
+  "/",
+  authGuard,
+  requireRole("ADMIN"),
+  validateRequest(createPackageRequestSchema),
+  catchAsync(createPackageHandler),
+);
 
 /**
  * @openapi
@@ -75,6 +74,8 @@ adminPackageRouter.post("/", createPackageHandler);
  *   put:
  *     tags: [Packages]
  *     summary: Update a subscription package (admin)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -87,6 +88,8 @@ adminPackageRouter.post("/", createPackageHandler);
  *   delete:
  *     tags: [Packages]
  *     summary: Delete a subscription package (admin)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -97,6 +100,36 @@ adminPackageRouter.post("/", createPackageHandler);
  *       200:
  *         description: Package deleted
  */
-adminPackageRouter.put("/:id", updatePackageHandler);
-adminPackageRouter.delete("/:id", deletePackageHandler);
+adminPackageRouter.put(
+  "/:id",
+  authGuard,
+  requireRole("ADMIN"),
+  validateRequest(updatePackageRequestSchema),
+  catchAsync(updatePackageHandler),
+);
+
+/**
+ * @openapi
+ * /api/v1/admin/packages/{id}:
+ *   delete:
+ *     tags: [Packages]
+ *     summary: Delete a subscription package (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Package deleted
+ */
+adminPackageRouter.delete(
+  "/:id",
+  authGuard,
+  requireRole("ADMIN"),
+  catchAsync(deletePackageHandler),
+);
 

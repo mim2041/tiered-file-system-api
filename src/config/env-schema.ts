@@ -12,6 +12,10 @@ export const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
   DEFAULT_ADMIN_EMAIL: z.string().email().default("admin@saasfs.local"),
   DEFAULT_ADMIN_PASSWORD: z.string().min(8).default("ChangeMe123!"),
+  // Optional integrations (keep optional for local dev)
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default(""),
+  CLOUDINARY_API_KEY: z.string().optional().default(""),
+  CLOUDINARY_API_SECRET: z.string().optional().default(""),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -20,8 +20,74 @@ const swaggerDefinition = {
         { name: "Packages", description: "Subscription packages management" },
         { name: "Folders", description: "Folder hierarchy operations" },
         { name: "Files", description: "File upload and management" },
-        { name: "Admin", description: "Admin-only operations" }
+        { name: "Admin", description: "Admin-only operations" },
     ],
+    components: {
+        securitySchemes: {
+            bearerAuth: {
+                type: "http",
+                scheme: "bearer",
+                bearerFormat: "JWT",
+            },
+        },
+        schemas: {
+            AuthTokens: {
+                type: "object",
+                properties: {
+                    accessToken: { type: "string" },
+                    refreshToken: { type: "string" },
+                },
+            },
+            PublicUser: {
+                type: "object",
+                properties: {
+                    id: { type: "string", format: "uuid" },
+                    email: { type: "string", format: "email" },
+                    name: { type: "string" },
+                    role: { type: "string", enum: ["ADMIN", "USER"] },
+                    isVerified: { type: "boolean" },
+                },
+            },
+            AuthResponse: {
+                type: "object",
+                properties: {
+                    user: { $ref: "#/components/schemas/PublicUser" },
+                    tokens: { $ref: "#/components/schemas/AuthTokens" },
+                },
+            },
+            SubscriptionPackage: {
+                type: "object",
+                properties: {
+                    id: { type: "string", format: "uuid" },
+                    name: { type: "string" },
+                    slug: { type: "string" },
+                    description: { type: "string", nullable: true },
+                    maxFolders: { type: "integer" },
+                    maxNestingLevel: { type: "integer" },
+                    maxFileSizeMb: { type: "integer" },
+                    totalFileLimit: { type: "integer" },
+                    filesPerFolderLimit: { type: "integer" },
+                    allowedFileTypes: {
+                        type: "array",
+                        items: { type: "string" },
+                    },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                },
+            },
+            ApiError: {
+                type: "object",
+                properties: {
+                    status: { type: "integer" },
+                    success: { type: "boolean" },
+                    code: { type: "string" },
+                    message: { type: "string" },
+                    details: {},
+                    path: { type: "string" },
+                },
+            },
+        },
+    },
 };
 
 const options: Options = {

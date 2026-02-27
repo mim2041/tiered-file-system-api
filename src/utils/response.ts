@@ -1,17 +1,30 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 
-export type ApiResponse<T> = {
+type TMeta = {
+  limit?: number;
+  page?: number;
+  total?: number;
+  totalPage?: number;
+};
+
+type TResponse<T> = {
+  statusCode: number;
   success: boolean;
-  message: string;
-  data?: T;
+  message?: string;
+  meta?: TMeta;
+  data: T;
 };
 
-export const sendOk = <T>(res: Response, message: string, data?: T) => {
-  const body: ApiResponse<T> = {
-    success: true,
-    message,
-    data,
-  };
-  return res.status(200).json(body);
+const sendResponse = <T>(req: Request, res: Response, data: TResponse<T>) => {
+  res.status(data?.statusCode).json({
+    status: data?.statusCode,
+    success: data.success,
+    message: data.message,
+    meta: data.meta,
+    data: data.data || null,
+    path: req.originalUrl,
+  });
 };
+
+export default sendResponse;
 

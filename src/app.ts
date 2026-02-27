@@ -7,10 +7,9 @@ import { env } from "./config/env-config";
 import { swaggerSpec } from "./config/swagger.config";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { notFoundMiddleware } from "./middleware/not-found.middleware";
-import { sendOk } from "./utils/response";
+import sendResponse from "./utils/response";
 import { APP_NAME } from "./constants";
-import { authRouter } from "./features/auth/routes";
-import { packageRouter, adminPackageRouter } from "./features/packages/routes";
+import router from "./routes";
 
 export const createApp = (): Application => {
   const app = express();
@@ -40,25 +39,33 @@ export const createApp = (): Application => {
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Feature routes
-  app.use("/api/v1/auth", authRouter);
-  app.use("/api/v1/packages", packageRouter);
-  app.use("/api/v1/admin/packages", adminPackageRouter);
+  app.use("/api/v1", router);
 
   // Base health + info routes
   app.get("/health", (req, res) =>
-    sendOk(res, "OK", {
-      app: APP_NAME,
-      version: env.version,
-      env: env.nodeEnv,
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
+    sendResponse(req, res, {
+      statusCode: 200,
+      success: true,
+      message: "OK",
+      data: {
+        app: APP_NAME,
+        version: env.version,
+        env: env.nodeEnv,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+      },
     }),
   );
 
   app.get("/", (req, res) =>
-    sendOk(res, "SaaS File Management System API", {
-      app: APP_NAME,
-      version: env.version,
+    sendResponse(req, res, {
+      statusCode: 200,
+      success: true,
+      message: "SaaS File Management System API",
+      data: {
+        app: APP_NAME,
+        version: env.version,
+      },
     }),
   );
 

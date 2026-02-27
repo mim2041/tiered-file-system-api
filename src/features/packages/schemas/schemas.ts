@@ -19,3 +19,15 @@ export const updatePackageSchema = basePackageSchema.partial();
 export type CreatePackageInput = z.infer<typeof createPackageSchema>;
 export type UpdatePackageInput = z.infer<typeof updatePackageSchema>;
 
+// validateRequest-compatible schemas
+export const createPackageRequestSchema = z.object({
+  body: createPackageSchema,
+});
+
+export const updatePackageRequestSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: updatePackageSchema,
+});
+

@@ -1,10 +1,10 @@
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { prisma } from "@/config/prisma.config";
 import { env } from "@/config/env-config";
 import { HttpError } from "@/utils/http-error";
 import { LoginInput, RegisterInput } from "./schemas";
 import { AuthResponse, AuthTokens, PublicUser } from "./types";
+import { userRepository } from "./repositories/user.repository";
 
 const toPublicUser = (user: {
   id: string;
@@ -20,7 +20,7 @@ const toPublicUser = (user: {
   isVerified: user.isVerified,
 });
 
-const buildTokens = (userId: string, role: "ADMIN" | "USER"): AuthTokens => {
+const buildTokens = (userId: string, email: string, role: "ADMIN" | "USER"): AuthTokens => {
   const accessOptions: SignOptions = {
     subject: userId,
     expiresIn: env.jwt.accessExpiresIn as SignOptions["expiresIn"],
@@ -31,18 +31,16 @@ const buildTokens = (userId: string, role: "ADMIN" | "USER"): AuthTokens => {
     expiresIn: env.jwt.refreshExpiresIn as SignOptions["expiresIn"],
   };
 
-  const accessToken = jwt.sign({ role }, env.jwt.accessSecret, accessOptions);
-  const refreshToken = jwt.sign({ role }, env.jwt.refreshSecret, refreshOptions);
+  const accessToken = jwt.sign({ role, email }, env.jwt.accessSecret, accessOptions);
+  const refreshToken = jwt.sign({ role, email }, env.jwt.refreshSecret, refreshOptions);
 
   return { accessToken, refreshToken };
 };
 
 export const authService = {
   async register(input: RegisterInput): Promise<AuthResponse> {
-    const existing = await prisma.user.findUnique({
-      where: { email: input.email.toLowerCase() },
-      select: { id: true },
-    });
+    const email = input.email.toLowerCase();
+    const existing = await userRepository.findByEmail(email);
 
     if (existing) {
       throw new HttpError(409, "EMAIL_EXISTS", "Email is already registered");
@@ -50,27 +48,13 @@ export const authService = {
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
-    const created = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email: input.email.toLowerCase(),
-          name: input.name,
-          passwordHash,
-          role: "USER",
-          isVerified: false,
-        },
-      });
-
-      await tx.userQuota.create({
-        data: {
-          userId: user.id,
-        },
-      });
-
-      return user;
+    const created = await userRepository.createUser({
+      email,
+      name: input.name,
+      passwordHash,
     });
 
-    const tokens = buildTokens(created.id, created.role);
+    const tokens = buildTokens(created.id, created.email, created.role);
 
     return {
       user: toPublicUser(created),
@@ -79,9 +63,7 @@ export const authService = {
   },
 
   async login(input: LoginInput): Promise<AuthResponse> {
-    const user = await prisma.user.findUnique({
-      where: { email: input.email.toLowerCase() },
-    });
+    const user = await userRepository.findByEmail(input.email.toLowerCase());
 
     if (!user) {
       throw new HttpError(401, "INVALID_CREDENTIALS", "Invalid email or password");
@@ -92,7 +74,7 @@ export const authService = {
       throw new HttpError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
 
-    const tokens = buildTokens(user.id, user.role);
+    const tokens = buildTokens(user.id, user.email, user.role);
 
     return {
       user: toPublicUser(user),
