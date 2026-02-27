@@ -26,8 +26,8 @@ const swaggerDefinition = {
 
 const options: Options = {
     definition: swaggerDefinition as any,
-    // Future: we can add JSDoc-annotated route files here
-    apis: ["./src/routes/**/*.ts", "./src/app.ts"],
+    // Scan feature routes (auth, packages, folders, files, etc.) for @openapi JSDoc
+    apis: ["./src/features/**/*.ts", "./src/app.ts"],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
