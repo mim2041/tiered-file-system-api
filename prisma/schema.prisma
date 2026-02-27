@@ -7,5 +7,224 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Domain models will be added in later milestones.
+enum Role {
+  ADMIN
+  USER
+}
 
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(USER)
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // relations
+  folders             Folder[]
+  files               File[]
+  subscriptions       UserSubscription[]
+  quota               UserQuota?
+  auditLogs           AuditLog[]
+  sessions            UserSession[]
+  emailTokens         EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  packageChanges      PackageHistory[]         @relation("PackageHistoryChangedBy")
+
+  @@map("users")
+}
+
+model SubscriptionPackage {
+  id                  String   @id @default(uuid()) @db.Uuid
+  name                String   @unique
+  slug                String   @unique
+  description         String?
+  maxFolders          Int      @map("max_folders")
+  maxNestingLevel     Int      @map("max_nesting_level")
+  maxFileSizeMb       Int      @map("max_file_size_mb")
+  totalFileLimit      Int      @map("total_file_limit")
+  filesPerFolderLimit Int      @map("files_per_folder_limit")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  allowedFileTypes PackageFileType[]
+  subscriptions    UserSubscription[]
+  history          PackageHistory[]   @relation("PackageHistoryPackage")
+
+  @@map("subscription_packages")
+}
+
+model PackageFileType {
+  id        String @id @default(uuid()) @db.Uuid
+  packageId String @map("package_id") @db.Uuid
+  mimeType  String @map("mime_type")
+
+  package SubscriptionPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, mimeType])
+  @@map("package_file_types")
+}
+
+model UserSubscription {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  packageId String    @map("package_id") @db.Uuid
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  isActive  Boolean   @default(true) @map("is_active")
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package SubscriptionPackage @relation(fields: [packageId], references: [id])
+
+  @@index([userId, isActive])
+  @@map("user_subscriptions")
+}
+
+model Folder {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String
+  path      String
+  depth     Int
+  isDeleted Boolean  @default(false) @map("is_deleted")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent   Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Folder[] @relation("FolderTree")
+
+  files File[]
+  stats FolderStats?
+
+  @@index([ownerId, parentId])
+  @@map("folders")
+}
+
+model File {
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @map("owner_id") @db.Uuid
+  folderId     String?  @map("folder_id") @db.Uuid
+  filename     String
+  originalName String   @map("original_name")
+  sizeBytes    BigInt   @map("size_bytes")
+  mimeType     String   @map("mime_type")
+  storageKey   String   @map("storage_key")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  owner  User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  folder Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  versions FileVersion[]
+
+  @@index([ownerId, folderId])
+  @@map("files")
+}
+
+model FileVersion {
+  id         String   @id @default(uuid()) @db.Uuid
+  fileId     String   @map("file_id") @db.Uuid
+  storageKey String   @map("storage_key")
+  sizeBytes  BigInt   @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@map("file_versions")
+}
+
+model UserQuota {
+  userId           String   @id @map("user_id") @db.Uuid
+  folderCount      Int      @default(0) @map("folder_count")
+  fileCount        Int      @default(0) @map("file_count")
+  usedStorageBytes BigInt   @default(0) @map("used_storage_bytes")
+  lastUpdated      DateTime @updatedAt @map("last_updated")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_quotas")
+}
+
+model FolderStats {
+  folderId    String   @id @map("folder_id") @db.Uuid
+  fileCount   Int      @default(0) @map("file_count")
+  sizeBytes   BigInt   @default(0) @map("size_bytes")
+  lastUpdated DateTime @updatedAt @map("last_updated")
+
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@map("folder_stats")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  actionType  String   @map("action_type")
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id") @db.Uuid
+  metaJson    Json?    @map("meta_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([actorUserId, actionType])
+  @@map("audit_logs")
+}
+
+model PackageHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  packageId String   @map("package_id") @db.Uuid
+  changedBy String   @map("changed_by") @db.Uuid
+  oldData   Json?    @map("old_data")
+  newData   Json     @map("new_data")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  package SubscriptionPackage @relation("PackageHistoryPackage", fields: [packageId], references: [id], onDelete: Cascade)
+  changer User                @relation("PackageHistoryChangedBy", fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@index([packageId, changedAt])
+  @@map("package_history")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model UserSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  refreshToken String   @map("refresh_token")
+  deviceInfo   String?  @map("device_info")
+  expiresAt    DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("user_sessions")
+}
