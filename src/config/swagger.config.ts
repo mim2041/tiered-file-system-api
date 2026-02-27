@@ -18,6 +18,7 @@ const swaggerDefinition = {
         { name: "Health", description: "Service health and status" },
         { name: "Auth", description: "Authentication & user access" },
         { name: "Packages", description: "Subscription packages management" },
+        { name: "Subscriptions", description: "User subscriptions and history" },
         { name: "Folders", description: "Folder hierarchy operations" },
         { name: "Files", description: "File upload and management" },
         { name: "Admin", description: "Admin-only operations" },
