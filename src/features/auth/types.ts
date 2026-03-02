@@ -14,5 +14,6 @@ export type AuthTokens = {
 export type AuthResponse = {
   user: PublicUser;
   tokens: AuthTokens;
+  verificationToken?: string;
 };
 

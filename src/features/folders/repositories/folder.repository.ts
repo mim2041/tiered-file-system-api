@@ -1,6 +1,18 @@
 import { prisma } from "@/config/prisma.config";
 
 export const folderRepository = {
+  countActiveByOwner(ownerId: string) {
+    return prisma.folder.count({
+      where: { ownerId, isDeleted: false },
+    });
+  },
+
+  countChildren(ownerId: string, parentId: string) {
+    return prisma.folder.count({
+      where: { ownerId, parentId, isDeleted: false },
+    });
+  },
+
   listByOwnerAndParent(ownerId: string, parentId: string | null) {
     return prisma.folder.findMany({
       where: { ownerId, parentId, isDeleted: false },

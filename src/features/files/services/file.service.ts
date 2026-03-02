@@ -2,14 +2,29 @@ import { prisma } from "@/config/prisma.config";
 import { cloudinaryFileUploadService } from "@/manager/cloudinary";
 import { HttpError } from "@/utils/http-error";
 import { folderRepository } from "@/features/folders/repositories/folder.repository";
+import { subscriptionRepository } from "@/features/subscriptions/repositories/subscription.repository";
 import { fileRepository } from "../repositories/file.repository";
 import type { UploadFileInput, RenameFileInput } from "../schemas";
 import type { FileDto } from "../types";
 
 const FEATURE_NAME = "files";
 
+const ensureActiveSubscription = async (userId: string) => {
+  const activeSubscription = await subscriptionRepository.findActiveByUserId(userId);
+  if (!activeSubscription) {
+    throw new HttpError(
+      403,
+      "SUBSCRIPTION_REQUIRED",
+      "An active subscription is required to manage files",
+    );
+  }
+
+  return activeSubscription;
+};
+
 export const fileService = {
   async listFilesForUser(userId: string, folderId: string | null): Promise<FileDto[]> {
+    await ensureActiveSubscription(userId);
     const files = await fileRepository.listByOwnerAndFolder(userId, folderId);
     return files as unknown as FileDto[];
   },
@@ -23,6 +38,8 @@ export const fileService = {
       throw new HttpError(400, "FILE_REQUIRED", "No file uploaded");
     }
 
+    const activeSubscription = await ensureActiveSubscription(userId);
+
     if (payload.folderId) {
       const folder = await folderRepository.findById(userId, payload.folderId);
       if (!folder) {
@@ -33,25 +50,6 @@ export const fileService = {
     const uploadResult = await cloudinaryFileUploadService.uploadFile(file, FEATURE_NAME);
 
     const created = await prisma.$transaction(async (tx) => {
-      const activeSubscription = await tx.userSubscription.findFirst({
-        where: { userId, isActive: true },
-        include: {
-          package: {
-            include: {
-              allowedFileTypes: true,
-            },
-          },
-        },
-      });
-
-      if (!activeSubscription) {
-        throw new HttpError(
-          403,
-          "SUBSCRIPTION_REQUIRED",
-          "An active subscription is required to upload files",
-        );
-      }
-
       const pkg = activeSubscription.package;
       const maxBytes = pkg.maxFileSizeMb * 1024 * 1024;
 
@@ -168,6 +166,8 @@ export const fileService = {
     id: string,
     payload: RenameFileInput,
   ): Promise<void> {
+    await ensureActiveSubscription(userId);
+
     const existing = await fileRepository.findById(userId, id);
     if (!existing) {
       throw new HttpError(404, "FILE_NOT_FOUND", "File not found");
@@ -177,6 +177,8 @@ export const fileService = {
   },
 
   async deleteFileForUser(userId: string, id: string): Promise<void> {
+    await ensureActiveSubscription(userId);
+
     const existing = await fileRepository.findById(userId, id);
     if (!existing) {
       throw new HttpError(404, "FILE_NOT_FOUND", "File not found");

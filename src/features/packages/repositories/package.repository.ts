@@ -92,5 +92,21 @@ export const packageRepository = {
   remove(id: string) {
     return prisma.subscriptionPackage.delete({ where: { id } });
   },
+
+  createHistory(data: {
+    packageId: string;
+    changedBy: string;
+    oldData: unknown;
+    newData: unknown;
+  }) {
+    return prisma.packageHistory.create({
+      data: {
+        packageId: data.packageId,
+        changedBy: data.changedBy,
+        oldData: data.oldData as any,
+        newData: data.newData as any,
+      },
+    });
+  },
 };
 

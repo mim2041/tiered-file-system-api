@@ -4,8 +4,11 @@ import { packageService } from "../services/service";
 import { createPackageSchema, updatePackageSchema } from "../schemas/schemas";
 
 export const createPackageHandler = async (req: Request, res: Response) => {
+  const changedBy = req.user?.id;
+  if (!changedBy) throw new Error("Authenticated user not found in request context");
+
   const input = createPackageSchema.parse(req.body);
-  const data = await packageService.create(input);
+  const data = await packageService.create(input, changedBy);
   return sendResponse(req, res, {
     statusCode: 201,
     success: true,
@@ -15,8 +18,11 @@ export const createPackageHandler = async (req: Request, res: Response) => {
 };
 
 export const updatePackageHandler = async (req: Request, res: Response) => {
+  const changedBy = req.user?.id;
+  if (!changedBy) throw new Error("Authenticated user not found in request context");
+
   const input = updatePackageSchema.parse(req.body);
-  const data = await packageService.update(req.params.id, input);
+  const data = await packageService.update(req.params.id, input, changedBy);
   return sendResponse(req, res, {
     statusCode: 200,
     success: true,

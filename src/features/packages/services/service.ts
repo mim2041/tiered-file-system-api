@@ -1,4 +1,5 @@
 import { HttpError } from "@/utils/http-error";
+import { Prisma } from "@prisma/client";
 import { CreatePackageInput, UpdatePackageInput } from "../schemas/schemas";
 import { SubscriptionPackageDto } from "../types/types";
 import { packageRepository } from "../repositories/package.repository";
@@ -24,7 +25,7 @@ export const packageService = {
     return packages.map(toDto);
   },
 
-  async create(input: CreatePackageInput): Promise<SubscriptionPackageDto> {
+  async create(input: CreatePackageInput, changedBy: string): Promise<SubscriptionPackageDto> {
     const exists = await packageRepository.findByNameOrSlug(input.name, input.slug);
     if (exists) {
       throw new HttpError(409, "PACKAGE_CONFLICT", "Package name or slug already exists");
@@ -32,10 +33,27 @@ export const packageService = {
 
     const created = await packageRepository.create(input);
 
+    await packageRepository.createHistory({
+      packageId: created.id,
+      changedBy,
+      oldData: null,
+      newData: {
+        name: created.name,
+        slug: created.slug,
+        description: created.description,
+        maxFolders: created.maxFolders,
+        maxNestingLevel: created.maxNestingLevel,
+        maxFileSizeMb: created.maxFileSizeMb,
+        totalFileLimit: created.totalFileLimit,
+        filesPerFolderLimit: created.filesPerFolderLimit,
+        mimeTypes: created.allowedFileTypes.map((item) => item.mimeType),
+      },
+    });
+
     return toDto(created);
   },
 
-  async update(id: string, input: UpdatePackageInput): Promise<SubscriptionPackageDto> {
+  async update(id: string, input: UpdatePackageInput, changedBy: string): Promise<SubscriptionPackageDto> {
     const pkg = await packageRepository.findById(id);
     if (!pkg) {
       throw new HttpError(404, "PACKAGE_NOT_FOUND", "Subscription package not found");
@@ -55,6 +73,33 @@ export const packageService = {
       mimeTypes: input.mimeTypes,
     });
 
+    await packageRepository.createHistory({
+      packageId: updated.id,
+      changedBy,
+      oldData: {
+        name: pkg.name,
+        slug: pkg.slug,
+        description: pkg.description,
+        maxFolders: pkg.maxFolders,
+        maxNestingLevel: pkg.maxNestingLevel,
+        maxFileSizeMb: pkg.maxFileSizeMb,
+        totalFileLimit: pkg.totalFileLimit,
+        filesPerFolderLimit: pkg.filesPerFolderLimit,
+        mimeTypes: pkg.allowedFileTypes.map((item) => item.mimeType),
+      },
+      newData: {
+        name: updated.name,
+        slug: updated.slug,
+        description: updated.description,
+        maxFolders: updated.maxFolders,
+        maxNestingLevel: updated.maxNestingLevel,
+        maxFileSizeMb: updated.maxFileSizeMb,
+        totalFileLimit: updated.totalFileLimit,
+        filesPerFolderLimit: updated.filesPerFolderLimit,
+        mimeTypes: updated.allowedFileTypes.map((item) => item.mimeType),
+      },
+    });
+
     return toDto(updated);
   },
 
@@ -64,7 +109,19 @@ export const packageService = {
       throw new HttpError(404, "PACKAGE_NOT_FOUND", "Subscription package not found");
     }
 
-    await packageRepository.remove(id);
+    try {
+      await packageRepository.remove(id);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        throw new HttpError(
+          409,
+          "PACKAGE_IN_USE",
+          "This package cannot be deleted because it is referenced by subscriptions",
+        );
+      }
+
+      throw error;
+    }
   },
 };
 

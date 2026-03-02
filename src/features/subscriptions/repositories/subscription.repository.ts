@@ -1,6 +1,20 @@
 import { prisma } from "@/config/prisma.config";
 
 export const subscriptionRepository = {
+  findActiveByUserId(userId: string) {
+    return prisma.userSubscription.findFirst({
+      where: { userId, isActive: true },
+      include: {
+        package: {
+          include: {
+            allowedFileTypes: true,
+          },
+        },
+      },
+      orderBy: { startedAt: "desc" },
+    });
+  },
+
   async activate(userId: string, packageId: string) {
     return prisma.$transaction(async (tx) => {
       await tx.userSubscription.updateMany({
