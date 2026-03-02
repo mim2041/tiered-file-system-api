@@ -1,9 +1,13 @@
 import { prisma } from "@/config/prisma.config";
 
 export const fileRepository = {
-  listByOwnerAndFolder(ownerId: string, folderId: string | null) {
+  listByOwnerAndFolder(ownerId: string, folderId?: string | null) {
     return prisma.file.findMany({
-      where: { ownerId, folderId, isDeleted: false },
+      where: {
+        ownerId,
+        isDeleted: false,
+        ...(folderId !== undefined ? { folderId } : {}),
+      },
       orderBy: { createdAt: "desc" },
     });
   },

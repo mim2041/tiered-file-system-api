@@ -3,7 +3,7 @@ import { fileService } from "../services/file.service";
 
 export const listFiles = async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const folderId = (req.query.folderId as string | undefined) ?? null;
+  const folderId = req.query.folderId as string | undefined;
 
   const files = await fileService.listFilesForUser(userId, folderId);
 

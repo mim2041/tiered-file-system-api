@@ -9,6 +9,32 @@ import type { FileDto } from "../types";
 
 const FEATURE_NAME = "files";
 
+const toDto = (file: {
+  id: string;
+  ownerId: string;
+  folderId: string | null;
+  filename: string;
+  originalName: string;
+  sizeBytes: bigint;
+  mimeType: string;
+  storageKey: string;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): FileDto => ({
+  id: file.id,
+  ownerId: file.ownerId,
+  folderId: file.folderId,
+  filename: file.filename,
+  originalName: file.originalName,
+  sizeBytes: file.sizeBytes.toString(),
+  mimeType: file.mimeType,
+  storageKey: file.storageKey,
+  isDeleted: file.isDeleted,
+  createdAt: file.createdAt,
+  updatedAt: file.updatedAt,
+});
+
 const ensureActiveSubscription = async (userId: string) => {
   const activeSubscription = await subscriptionRepository.findActiveByUserId(userId);
   if (!activeSubscription) {
@@ -23,10 +49,24 @@ const ensureActiveSubscription = async (userId: string) => {
 };
 
 export const fileService = {
-  async listFilesForUser(userId: string, folderId: string | null): Promise<FileDto[]> {
+  async listFilesForUser(userId: string, folderId?: string | null): Promise<FileDto[]> {
     await ensureActiveSubscription(userId);
     const files = await fileRepository.listByOwnerAndFolder(userId, folderId);
-    return files as unknown as FileDto[];
+    return files.map((file) =>
+      toDto({
+        id: file.id,
+        ownerId: file.ownerId,
+        folderId: file.folderId,
+        filename: file.filename,
+        originalName: file.originalName,
+        sizeBytes: file.sizeBytes,
+        mimeType: file.mimeType,
+        storageKey: file.storageKey,
+        isDeleted: file.isDeleted,
+        createdAt: file.createdAt,
+        updatedAt: file.updatedAt,
+      }),
+    );
   },
 
   async uploadFileForUser(
@@ -158,7 +198,19 @@ export const fileService = {
       return createdFile;
     });
 
-    return created as unknown as FileDto;
+    return toDto({
+      id: created.id,
+      ownerId: created.ownerId,
+      folderId: created.folderId,
+      filename: created.filename,
+      originalName: created.originalName,
+      sizeBytes: created.sizeBytes,
+      mimeType: created.mimeType,
+      storageKey: created.storageKey,
+      isDeleted: created.isDeleted,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    });
   },
 
   async renameFileForUser(

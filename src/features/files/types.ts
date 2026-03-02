@@ -4,7 +4,7 @@ export type FileDto = {
   folderId: string | null;
   filename: string;
   originalName: string;
-  sizeBytes: bigint;
+  sizeBytes: string;
   mimeType: string;
   storageKey: string;
   isDeleted: boolean;
