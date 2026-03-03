@@ -32,7 +32,10 @@ export const updatePackageHandler = async (req: Request, res: Response) => {
 };
 
 export const deletePackageHandler = async (req: Request, res: Response) => {
-  await packageService.remove(req.params.id);
+  const changedBy = req.user?.id;
+  if (!changedBy) throw new Error("Authenticated user not found in request context");
+
+  await packageService.remove(req.params.id, changedBy);
   return sendResponse(req, res, {
     statusCode: 200,
     success: true,

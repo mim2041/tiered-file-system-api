@@ -6,6 +6,7 @@ import { publicSubscriptionRouter } from "../features/subscriptions/routes/publi
 import { publicFolderRouter } from "../features/folders/routes/public.routes";
 import { adminFolderRouter } from "../features/folders/routes/admin.routes";
 import { publicFileRouter } from "../features/files/routes/public.routes";
+import { adminManagementRouter } from "../features/admin/routes/admin.routes";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/subscriptions", publicSubscriptionRouter);
 router.use("/folders", publicFolderRouter);
 router.use("/admin/folders", adminFolderRouter);
 router.use("/files", publicFileRouter);
+router.use("/admin", adminManagementRouter);
 
 export default router;

@@ -1,5 +1,6 @@
 import { HttpError } from "@/utils/http-error";
 import { Prisma } from "@prisma/client";
+import { auditService } from "@/features/audit/service";
 import { CreatePackageInput, UpdatePackageInput } from "../schemas/schemas";
 import { SubscriptionPackageDto } from "../types/types";
 import { packageRepository } from "../repositories/package.repository";
@@ -17,6 +18,18 @@ const toDto = (pkg: any): SubscriptionPackageDto => ({
   allowedFileTypes: pkg.allowedFileTypes.map((t: { mimeType: string }) => t.mimeType),
   createdAt: pkg.createdAt,
   updatedAt: pkg.updatedAt,
+});
+
+const toAuditSnapshot = (pkg: any) => ({
+  name: pkg.name,
+  slug: pkg.slug,
+  description: pkg.description,
+  maxFolders: pkg.maxFolders,
+  maxNestingLevel: pkg.maxNestingLevel,
+  maxFileSizeMb: pkg.maxFileSizeMb,
+  totalFileLimit: pkg.totalFileLimit,
+  filesPerFolderLimit: pkg.filesPerFolderLimit,
+  mimeTypes: pkg.allowedFileTypes.map((item: { mimeType: string }) => item.mimeType),
 });
 
 export const packageService = {
@@ -37,16 +50,17 @@ export const packageService = {
       packageId: created.id,
       changedBy,
       oldData: null,
-      newData: {
-        name: created.name,
-        slug: created.slug,
-        description: created.description,
-        maxFolders: created.maxFolders,
-        maxNestingLevel: created.maxNestingLevel,
-        maxFileSizeMb: created.maxFileSizeMb,
-        totalFileLimit: created.totalFileLimit,
-        filesPerFolderLimit: created.filesPerFolderLimit,
-        mimeTypes: created.allowedFileTypes.map((item) => item.mimeType),
+      newData: toAuditSnapshot(created),
+    });
+
+    await auditService.record({
+      actorUserId: changedBy,
+      actionType: "PACKAGE_CREATED",
+      targetType: "SUBSCRIPTION_PACKAGE",
+      targetId: created.id,
+      metaJson: {
+        oldData: null,
+        newData: toAuditSnapshot(created),
       },
     });
 
@@ -76,34 +90,25 @@ export const packageService = {
     await packageRepository.createHistory({
       packageId: updated.id,
       changedBy,
-      oldData: {
-        name: pkg.name,
-        slug: pkg.slug,
-        description: pkg.description,
-        maxFolders: pkg.maxFolders,
-        maxNestingLevel: pkg.maxNestingLevel,
-        maxFileSizeMb: pkg.maxFileSizeMb,
-        totalFileLimit: pkg.totalFileLimit,
-        filesPerFolderLimit: pkg.filesPerFolderLimit,
-        mimeTypes: pkg.allowedFileTypes.map((item) => item.mimeType),
-      },
-      newData: {
-        name: updated.name,
-        slug: updated.slug,
-        description: updated.description,
-        maxFolders: updated.maxFolders,
-        maxNestingLevel: updated.maxNestingLevel,
-        maxFileSizeMb: updated.maxFileSizeMb,
-        totalFileLimit: updated.totalFileLimit,
-        filesPerFolderLimit: updated.filesPerFolderLimit,
-        mimeTypes: updated.allowedFileTypes.map((item) => item.mimeType),
+      oldData: toAuditSnapshot(pkg),
+      newData: toAuditSnapshot(updated),
+    });
+
+    await auditService.record({
+      actorUserId: changedBy,
+      actionType: "PACKAGE_UPDATED",
+      targetType: "SUBSCRIPTION_PACKAGE",
+      targetId: updated.id,
+      metaJson: {
+        oldData: toAuditSnapshot(pkg),
+        newData: toAuditSnapshot(updated),
       },
     });
 
     return toDto(updated);
   },
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, changedBy: string): Promise<void> {
     const pkg = await packageRepository.findById(id);
     if (!pkg) {
       throw new HttpError(404, "PACKAGE_NOT_FOUND", "Subscription package not found");
@@ -111,6 +116,17 @@ export const packageService = {
 
     try {
       await packageRepository.remove(id);
+
+      await auditService.record({
+        actorUserId: changedBy,
+        actionType: "PACKAGE_DELETED",
+        targetType: "SUBSCRIPTION_PACKAGE",
+        targetId: id,
+        metaJson: {
+          oldData: toAuditSnapshot(pkg),
+          newData: null,
+        },
+      });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
         throw new HttpError(
